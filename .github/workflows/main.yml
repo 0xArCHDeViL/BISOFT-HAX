@@ -1,0 +1,111 @@
+name: Build DeViL
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: true
+        default: 'main'
+        type: string
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    outputs:
+      commit_id: ${{ steps.info.outputs.commit_id }}
+      commit_msg: ${{ steps.info.outputs.commit_msg }}
+      commit_author: ${{ steps.info.outputs.commit_author }}
+      commit_date: ${{ steps.info.outputs.commit_date }}
+      branch_name: ${{ steps.info.outputs.branch_name }}
+      apk_name: ${{ steps.info.outputs.apk_name }}
+    
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          repository: 0xArCHDeViL/0xEWA-HAX
+          ref: ${{ inputs.branch }}
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          fetch-depth: 0
+
+      - name: Extract commit info
+        id: info
+        run: |
+          echo "commit_id=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "commit_msg=$(git log -1 --pretty=%s)" >> $GITHUB_OUTPUT
+          echo "commit_author=$(git log -1 --pretty=%an)" >> $GITHUB_OUTPUT
+          echo "commit_date=$(git log -1 --pretty=%ci)" >> $GITHUB_OUTPUT
+          echo "branch_name=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_OUTPUT
+          echo "apk_name=DeViL-${{ inputs.branch }}-$(git rev-parse --short HEAD).apk" >> $GITHUB_OUTPUT
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Build release APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p artifact
+          cp app/build/outputs/apk/release/app-release.apk artifact/${{ steps.info.outputs.apk_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: devil-apk
+          path: artifact/*.apk
+          retention-days: 7
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: devil-apk
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          TAG="${{ inputs.branch }}-$(echo ${{ needs.build.outputs.commit_id }} | cut -c1-7)"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ needs.build.outputs.apk_name }}
+          prerelease: true
+          files: "*.apk"
+          body: |
+            **Branch:** `${{ inputs.branch }}`
+            **Commit:** `${{ needs.build.outputs.commit_id }}`
+            **Author:** ${{ needs.build.outputs.commit_author }}
+            **Date:** ${{ needs.build.outputs.commit_date }}
+            
+            ```
+            ${{ needs.build.outputs.commit_msg }}
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
