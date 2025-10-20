@@ -77,15 +77,6 @@ graph TD
 
 </div>
 
-<div align="center">
-
-### 🌐 **CONNECT WITH THE ARCHITECT**
-
-[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white&labelColor=000000)](https://github.com/muhammadfadelalexander)
-[![Portfolio](https://img.shields.io/badge/Portfolio-FF5722?style=for-the-badge&logo=firefox&logoColor=white&labelColor=000000)](https://muhammadfadelalexander.vercel.app)
-[![Email](https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white&labelColor=000000)](mailto:muhammadfadelalexander@gmail.com)
-
-</div>
 
 <div align="center">
   <img src="https://github.com/AnderMendoza/AnderMendoza/raw/main/assets/line-neon.gif" width="100%">
